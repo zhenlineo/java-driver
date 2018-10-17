@@ -21,6 +21,7 @@ package org.neo4j.driver.v1;
 import java.util.concurrent.CompletionStage;
 
 import org.neo4j.driver.v1.exceptions.ClientException;
+import org.neo4j.driver.react.RxSession;
 
 /**
  * Accessor for a specific Neo4j graph database.
@@ -165,5 +166,7 @@ public interface Driver extends AutoCloseable
      * @return the driver metrics if enabled.
      * @throws ClientException if the driver metrics reporting is not enabled.
      */
-    public Metrics metrics();
+    Metrics metrics();
+
+    RxSession rxSession();
 }
