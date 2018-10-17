@@ -18,32 +18,57 @@
  */
 package org.neo4j.driver.internal.messaging.request;
 
-import org.neo4j.driver.internal.messaging.Message;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+
+import org.neo4j.driver.v1.Value;
+import org.neo4j.driver.v1.Values;
 
 /**
- * PULL_ALL request message
+ * PULL_N request message
  * <p>
  * Sent by clients to pull the entirety of the remaining stream down.
  */
-public class PullAllMessage implements Message
+public class PullNMessage extends PullAllMessage
 {
-    public static final byte SIGNATURE = 0x3F;
+    private final Map<String,Value> metadata = new HashMap<>();
 
-    public static final PullAllMessage PULL_ALL = new PullAllMessage();
-
-    protected PullAllMessage()
+    public PullNMessage( long n )
     {
+        super();
+        this.metadata.put( "n", Values.value( n ) );
+    }
+
+    public Map<String,Value> metadata()
+    {
+        return metadata;
     }
 
     @Override
-    public byte signature()
+    public boolean equals( Object o )
     {
-        return SIGNATURE;
+        if ( this == o )
+        {
+            return true;
+        }
+        if ( o == null || getClass() != o.getClass() )
+        {
+            return false;
+        }
+        PullNMessage that = (PullNMessage) o;
+        return Objects.equals( metadata, that.metadata );
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash( metadata );
     }
 
     @Override
     public String toString()
     {
-        return "PULL_ALL";
+        return "PULL_N " + metadata;
     }
 }

@@ -18,6 +18,8 @@
  */
 package org.neo4j.driver.v1;
 
+import org.reactivestreams.Publisher;
+
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -160,4 +162,6 @@ public interface StatementResultCursor
      * completed exceptionally if query execution or provided function fails.
      */
     <T> CompletionStage<List<T>> listAsync( Function<Record,T> mapFunction );
+
+    Publisher<Record> publisher();
 }

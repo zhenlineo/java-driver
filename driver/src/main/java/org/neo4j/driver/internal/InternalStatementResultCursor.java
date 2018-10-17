@@ -18,11 +18,14 @@
  */
 package org.neo4j.driver.internal;
 
+import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscription;
+
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import org.neo4j.driver.internal.handlers.PullAllResponseHandler;
+import org.neo4j.driver.internal.handlers.PullHandler;
 import org.neo4j.driver.internal.handlers.RunResponseHandler;
 import org.neo4j.driver.internal.util.Futures;
 import org.neo4j.driver.v1.Record;
@@ -36,12 +39,12 @@ import org.neo4j.driver.v1.util.Functions;
 public class InternalStatementResultCursor implements StatementResultCursor
 {
     private final RunResponseHandler runResponseHandler;
-    private final PullAllResponseHandler pullAllHandler;
+    private final PullHandler pullHandler;
 
-    public InternalStatementResultCursor( RunResponseHandler runResponseHandler, PullAllResponseHandler pullAllHandler )
+    public InternalStatementResultCursor( RunResponseHandler runResponseHandler, PullHandler pullAllHandler )
     {
         this.runResponseHandler = runResponseHandler;
-        this.pullAllHandler = pullAllHandler;
+        this.pullHandler = pullAllHandler;
     }
 
     @Override
@@ -53,39 +56,35 @@ public class InternalStatementResultCursor implements StatementResultCursor
     @Override
     public CompletionStage<ResultSummary> summaryAsync()
     {
-        return pullAllHandler.summaryAsync();
+        return pullHandler.summaryAsync();
     }
 
     @Override
     public CompletionStage<Record> nextAsync()
     {
-        return pullAllHandler.nextAsync();
+        return pullHandler.nextAsync();
     }
 
     @Override
     public CompletionStage<Record> peekAsync()
     {
-        return pullAllHandler.peekAsync();
+        return pullHandler.peekAsync();
     }
 
     @Override
     public CompletionStage<Record> singleAsync()
     {
-        return nextAsync().thenCompose( firstRecord ->
-        {
+        return nextAsync().thenCompose( firstRecord -> {
             if ( firstRecord == null )
             {
-                throw new NoSuchRecordException(
-                        "Cannot retrieve a single record, because this result is empty." );
+                throw new NoSuchRecordException( "Cannot retrieve a single record, because this result is empty." );
             }
-            return nextAsync().thenApply( secondRecord ->
-            {
+            return nextAsync().thenApply( secondRecord -> {
                 if ( secondRecord != null )
                 {
                     throw new NoSuchRecordException(
-                            "Expected a result with a single record, but this result " +
-                            "contains at least one more. Ensure your query returns only " +
-                            "one record." );
+                            "Expected a result with a single record, but this result " + "contains at least one more. Ensure your query returns only " +
+                                    "one record." );
                 }
                 return firstRecord;
             } );
@@ -95,7 +94,7 @@ public class InternalStatementResultCursor implements StatementResultCursor
     @Override
     public CompletionStage<ResultSummary> consumeAsync()
     {
-        return pullAllHandler.consumeAsync();
+        return pullHandler.consumeAsync();
     }
 
     @Override
@@ -115,12 +114,44 @@ public class InternalStatementResultCursor implements StatementResultCursor
     @Override
     public <T> CompletionStage<List<T>> listAsync( Function<Record,T> mapFunction )
     {
-        return pullAllHandler.listAsync( mapFunction );
+        return pullHandler.listAsync( mapFunction );
+    }
+
+    @Override
+    public Publisher<Record> publisher()
+    {
+        return s -> s.onSubscribe( new Subscription()
+        {
+            @Override
+            public void request( long n )
+            {
+                // pull_n
+                pullHandler.pull( n );
+                forEachAsync( s::onNext ).whenComplete( ( summary, error ) -> {
+                    if ( summary != null )
+                    {
+                        s.onComplete();
+                    }
+                    else if ( error != null )
+                    {
+                        s.onError( error );
+                    }
+                    // else not yet there. you shall pull more
+                } );
+            }
+
+            @Override
+            public void cancel()
+            {
+                // discard_all;
+                pullHandler.cancel();
+            }
+        } );
     }
 
     public CompletionStage<Throwable> failureAsync()
     {
-        return pullAllHandler.failureAsync();
+        return pullHandler.failureAsync();
     }
 
     private void internalForEachAsync( Consumer<Record> action, CompletableFuture<Void> resultFuture )
@@ -129,8 +160,7 @@ public class InternalStatementResultCursor implements StatementResultCursor
 
         // use async completion listener because of recursion, otherwise it is possible for
         // the caller thread to get StackOverflowError when result is large and buffered
-        recordFuture.whenCompleteAsync( ( record, completionError ) ->
-        {
+        recordFuture.whenCompleteAsync( ( record, completionError ) -> {
             Throwable error = Futures.completionExceptionCause( completionError );
             if ( error != null )
             {
