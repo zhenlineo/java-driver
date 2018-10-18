@@ -28,12 +28,11 @@ import java.util.concurrent.CompletionStage;
 import org.neo4j.driver.internal.Bookmarks;
 import org.neo4j.driver.internal.BookmarksHolder;
 import org.neo4j.driver.internal.ExplicitTransaction;
-import org.neo4j.driver.internal.InternalStatementResultCursor;
+import org.neo4j.driver.internal.handlers.AbstractPullAllResponseHandler;
 import org.neo4j.driver.internal.handlers.BeginTxResponseHandler;
 import org.neo4j.driver.internal.handlers.CommitTxResponseHandler;
 import org.neo4j.driver.internal.handlers.HelloResponseHandler;
 import org.neo4j.driver.internal.handlers.NoOpResponseHandler;
-import org.neo4j.driver.internal.handlers.PullAllResponseHandler;
 import org.neo4j.driver.internal.handlers.RollbackTxResponseHandler;
 import org.neo4j.driver.internal.handlers.RunResponseHandler;
 import org.neo4j.driver.internal.handlers.SessionPullAllResponseHandler;
@@ -45,9 +44,11 @@ import org.neo4j.driver.internal.messaging.request.BeginMessage;
 import org.neo4j.driver.internal.messaging.request.GoodbyeMessage;
 import org.neo4j.driver.internal.messaging.request.HelloMessage;
 import org.neo4j.driver.internal.messaging.request.RunWithMetadataMessage;
+import org.neo4j.driver.internal.messaging.v1.BoltProtocolV1.AsyncResultCursorOnlyFactory;
 import org.neo4j.driver.internal.spi.Connection;
 import org.neo4j.driver.internal.util.Futures;
 import org.neo4j.driver.internal.util.MetadataExtractor;
+import org.neo4j.driver.react.result.StatementResultCursorFactory;
 import org.neo4j.driver.v1.Statement;
 import org.neo4j.driver.v1.TransactionConfig;
 import org.neo4j.driver.v1.Value;
@@ -128,21 +129,21 @@ public class BoltProtocolV3 implements BoltProtocol
     }
 
     @Override
-    public CompletionStage<InternalStatementResultCursor> runInAutoCommitTransaction( Connection connection, Statement statement,
+    public CompletionStage<StatementResultCursorFactory> runInAutoCommitTransaction( Connection connection, Statement statement,
             BookmarksHolder bookmarksHolder, TransactionConfig config, boolean waitForRunResponse )
     {
         return runStatement( connection, statement, bookmarksHolder, null, config, waitForRunResponse );
     }
 
     @Override
-    public CompletionStage<InternalStatementResultCursor> runInExplicitTransaction( Connection connection, Statement statement, ExplicitTransaction tx,
+    public CompletionStage<StatementResultCursorFactory> runInExplicitTransaction( Connection connection, Statement statement, ExplicitTransaction tx,
             boolean waitForRunResponse )
     {
         return runStatement( connection, statement, BookmarksHolder.NO_OP, tx, TransactionConfig.empty(), waitForRunResponse );
     }
 
-    private static CompletionStage<InternalStatementResultCursor> runStatement( Connection connection, Statement statement,
-            BookmarksHolder bookmarksHolder, ExplicitTransaction tx, TransactionConfig config, boolean waitForRunResponse )
+    private static CompletionStage<StatementResultCursorFactory> runStatement( Connection connection, Statement statement, BookmarksHolder bookmarksHolder,
+            ExplicitTransaction tx, TransactionConfig config, boolean waitForRunResponse )
     {
         String query = statement.text();
         Map<String,Value> params = statement.parameters().asMap( ofValue() );
@@ -150,24 +151,23 @@ public class BoltProtocolV3 implements BoltProtocol
         CompletableFuture<Void> runCompletedFuture = new CompletableFuture<>();
         Message runMessage = new RunWithMetadataMessage( query, params, bookmarksHolder.getBookmarks(), config );
         RunResponseHandler runHandler = new RunResponseHandler( runCompletedFuture, METADATA_EXTRACTOR );
-        PullAllResponseHandler pullAllHandler = newPullAllHandler( statement, runHandler, connection, bookmarksHolder, tx );
+        AbstractPullAllResponseHandler pullAllHandler = newPullAllHandler( statement, runHandler, connection, bookmarksHolder, tx );
 
         connection.writeAndFlush( runMessage, runHandler, PULL_ALL, pullAllHandler );
 
         if ( waitForRunResponse )
         {
             // wait for response of RUN before proceeding
-            return runCompletedFuture.thenApply( ignore ->
-                    new InternalStatementResultCursor( runHandler, pullAllHandler ) );
+            return runCompletedFuture.thenApply( ignore -> new AsyncResultCursorOnlyFactory( runHandler, pullAllHandler ) );
         }
         else
         {
-            return completedFuture( new InternalStatementResultCursor( runHandler, pullAllHandler ) );
+            return completedFuture( new AsyncResultCursorOnlyFactory( runHandler, pullAllHandler ) );
         }
     }
 
-    private static PullAllResponseHandler newPullAllHandler( Statement statement, RunResponseHandler runHandler,
-            Connection connection, BookmarksHolder bookmarksHolder, ExplicitTransaction tx )
+    private static AbstractPullAllResponseHandler newPullAllHandler( Statement statement, RunResponseHandler runHandler, Connection connection,
+            BookmarksHolder bookmarksHolder, ExplicitTransaction tx )
     {
         if ( tx != null )
         {

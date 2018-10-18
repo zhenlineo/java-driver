@@ -28,16 +28,12 @@ import java.util.concurrent.CompletionStage;
 import org.neo4j.driver.internal.Bookmarks;
 import org.neo4j.driver.internal.BookmarksHolder;
 import org.neo4j.driver.internal.ExplicitTransaction;
-import org.neo4j.driver.internal.InternalStatementResultCursor;
 import org.neo4j.driver.internal.handlers.BeginTxResponseHandler;
 import org.neo4j.driver.internal.handlers.CommitTxResponseHandler;
 import org.neo4j.driver.internal.handlers.HelloResponseHandler;
 import org.neo4j.driver.internal.handlers.NoOpResponseHandler;
-import org.neo4j.driver.internal.handlers.PullHandler;
 import org.neo4j.driver.internal.handlers.RollbackTxResponseHandler;
 import org.neo4j.driver.internal.handlers.RunResponseHandler;
-import org.neo4j.driver.internal.handlers.SessionPullNResponseHandler;
-import org.neo4j.driver.internal.handlers.TransactionPullNResponseHandler;
 import org.neo4j.driver.internal.messaging.BoltProtocol;
 import org.neo4j.driver.internal.messaging.Message;
 import org.neo4j.driver.internal.messaging.MessageFormat;
@@ -49,6 +45,8 @@ import org.neo4j.driver.internal.messaging.v3.MessageFormatV3;
 import org.neo4j.driver.internal.spi.Connection;
 import org.neo4j.driver.internal.util.Futures;
 import org.neo4j.driver.internal.util.MetadataExtractor;
+import org.neo4j.driver.react.result.InternalStatementResultCursorFactory;
+import org.neo4j.driver.react.result.StatementResultCursorFactory;
 import org.neo4j.driver.v1.Statement;
 import org.neo4j.driver.v1.TransactionConfig;
 import org.neo4j.driver.v1.Value;
@@ -61,7 +59,7 @@ import static org.neo4j.driver.v1.Values.ofValue;
 
 public class BoltProtocolV4 implements BoltProtocol
 {
-    public static final int VERSION = 3;
+    public static final int VERSION = 4;
 
     public static final BoltProtocol INSTANCE = new BoltProtocolV4();
 
@@ -128,21 +126,21 @@ public class BoltProtocolV4 implements BoltProtocol
     }
 
     @Override
-    public CompletionStage<InternalStatementResultCursor> runInAutoCommitTransaction( Connection connection, Statement statement,
+    public CompletionStage<StatementResultCursorFactory> runInAutoCommitTransaction( Connection connection, Statement statement,
             BookmarksHolder bookmarksHolder, TransactionConfig config, boolean waitForRunResponse )
     {
         return runStatement( connection, statement, bookmarksHolder, null, config, waitForRunResponse );
     }
 
     @Override
-    public CompletionStage<InternalStatementResultCursor> runInExplicitTransaction( Connection connection, Statement statement, ExplicitTransaction tx,
+    public CompletionStage<StatementResultCursorFactory> runInExplicitTransaction( Connection connection, Statement statement, ExplicitTransaction tx,
             boolean waitForRunResponse )
     {
         return runStatement( connection, statement, BookmarksHolder.NO_OP, tx, TransactionConfig.empty(), waitForRunResponse );
     }
 
-    private static CompletionStage<InternalStatementResultCursor> runStatement( Connection connection, Statement statement,
-            BookmarksHolder bookmarksHolder, ExplicitTransaction tx, TransactionConfig config, boolean waitForRunResponse )
+    private static CompletionStage<StatementResultCursorFactory> runStatement( Connection connection, Statement statement, BookmarksHolder bookmarksHolder,
+            ExplicitTransaction tx, TransactionConfig config, boolean waitForRunResponse )
     {
         String query = statement.text();
         Map<String,Value> params = statement.parameters().asMap( ofValue() );
@@ -152,26 +150,15 @@ public class BoltProtocolV4 implements BoltProtocol
         RunResponseHandler runHandler = new RunResponseHandler( runCompletedFuture, METADATA_EXTRACTOR );
         connection.writeAndFlush( runMessage, runHandler );
 
-        PullHandler pullHandler = newPullHandler( statement, runHandler, connection, bookmarksHolder, tx );
         if ( waitForRunResponse )
         {
             // wait for response of RUN before proceeding
             return runCompletedFuture.thenApply( ignore ->
-                    new InternalStatementResultCursor( runHandler, pullHandler ) );
+                    new InternalStatementResultCursorFactory( runHandler, statement, connection, bookmarksHolder, tx ) );
         }
         else
         {
-            return completedFuture( new InternalStatementResultCursor( runHandler, pullHandler ) );
+            return completedFuture( new InternalStatementResultCursorFactory( runHandler, statement, connection, bookmarksHolder, tx ) );
         }
-    }
-
-    private static PullHandler newPullHandler( Statement statement, RunResponseHandler runHandler,
-            Connection connection, BookmarksHolder bookmarksHolder, ExplicitTransaction tx )
-    {
-        if ( tx != null )
-        {
-            new TransactionPullNResponseHandler( statement, runHandler, connection, tx, METADATA_EXTRACTOR );
-        }
-        return new SessionPullNResponseHandler( statement, runHandler, connection, bookmarksHolder, METADATA_EXTRACTOR );
     }
 }

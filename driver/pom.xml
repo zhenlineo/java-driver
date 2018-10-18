@@ -37,6 +37,10 @@
       <groupId>org.hdrhistogram</groupId>
       <artifactId>HdrHistogram</artifactId>
     </dependency>
+    <dependency>
+      <groupId>io.projectreactor</groupId>
+      <artifactId>reactor-core</artifactId>
+    </dependency>
 
     <!-- Optional dependencies -->
     <dependency>
@@ -228,6 +232,7 @@
                 <includes>
                   <include>io.netty:*</include>
                   <include>org.hdrhistogram:*</include>
+                  <include>io.projectreactor:*</include>
                 </includes>
               </artifactSet>
               <relocations>
@@ -238,6 +243,10 @@
                 <relocation>
                   <pattern>org.HdrHistogram</pattern>
                   <shadedPattern>org.neo4j.driver.internal.shaded.org.HdrHistogram</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.projectreactor</pattern>
+                  <shadedPattern>org.neo4j.driver.internal.shaded.io.projectreactor</shadedPattern>
                 </relocation>
               </relocations>
               <shadeTestJar>true</shadeTestJar>

@@ -20,6 +20,8 @@ package org.neo4j.driver.v1;
 
 import java.util.concurrent.CompletionStage;
 
+import org.neo4j.driver.react.RxSession;
+
 /**
  * Accessor for a specific Neo4j graph database.
  * <p>
@@ -155,4 +157,6 @@ public interface Driver extends AutoCloseable
      * @return a {@link CompletionStage completion stage} that represents the asynchronous close.
      */
     CompletionStage<Void> closeAsync();
+
+    RxSession rxSession();
 }

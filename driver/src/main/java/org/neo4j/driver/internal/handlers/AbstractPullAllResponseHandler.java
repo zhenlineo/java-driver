@@ -20,7 +20,6 @@ package org.neo4j.driver.internal.handlers;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -28,12 +27,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.neo4j.driver.internal.InternalRecord;
-import org.neo4j.driver.internal.messaging.request.PullNMessage;
+import org.neo4j.driver.internal.spi.AutoReadManagingResponseHandler;
 import org.neo4j.driver.internal.spi.Connection;
 import org.neo4j.driver.internal.util.Futures;
 import org.neo4j.driver.internal.util.Iterables;
 import org.neo4j.driver.internal.util.MetadataExtractor;
-import org.neo4j.driver.internal.value.BooleanValue;
 import org.neo4j.driver.v1.Record;
 import org.neo4j.driver.v1.Statement;
 import org.neo4j.driver.v1.Value;
@@ -46,9 +44,12 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.neo4j.driver.internal.util.Futures.completedWithNull;
 import static org.neo4j.driver.internal.util.Futures.failedFuture;
 
-public abstract class PullNRequestAndResponseHandler implements PullHandler
+public abstract class AbstractPullAllResponseHandler implements PullAllResponseHandler, AutoReadManagingResponseHandler
 {
     private static final Queue<Record> UNINITIALIZED_RECORDS = Iterables.emptyQueue();
+
+    static final int RECORD_BUFFER_LOW_WATERMARK = Integer.getInteger( "recordBufferLowWatermark", 300 );
+    static final int RECORD_BUFFER_HIGH_WATERMARK = Integer.getInteger( "recordBufferHighWatermark", 1000 );
 
     private final Statement statement;
     private final RunResponseHandler runResponseHandler;
@@ -58,141 +59,33 @@ public abstract class PullNRequestAndResponseHandler implements PullHandler
     // initialized lazily when first record arrives
     private Queue<Record> records = UNINITIALIZED_RECORDS;
 
+    private boolean autoReadManagementEnabled = true;
+    private boolean finished;
     private Throwable failure;
     private ResultSummary summary;
 
+    private boolean ignoreRecords;
     private CompletableFuture<Record> recordFuture;
     private CompletableFuture<Throwable> failureFuture;
-    private Status status;
-    private volatile boolean isCancelled = false;
 
-    // we automatically pull this amount of records when accessing a record that has not been pulled
-    // This value cannot be less than 1
-    private static final int AUTO_PULL_SIZE = 10;
-
-    enum Status
-    {
-        Streaming
-                {
-                    void onRecord( PullNRequestAndResponseHandler handler, Value[] fields )
-                    {
-                        // we only check if it is cancelled here as we do not want both user thread and netty io thread to touch this status
-                        if( handler.isCancelled )
-                        {
-                            handler.status = Cancelled;
-                            handler.status.onRecord( handler, fields );
-                            return;
-                        }
-
-                        // save records
-                        Record record = new InternalRecord( handler.runResponseHandler.statementKeys(), fields );
-                        handler.enqueueRecord( record );
-                        handler.completeRecordFuture( record );
-
-                    }
-                },
-        Finished
-                {
-                    void onSuccess( PullNRequestAndResponseHandler handler, Map<String,Value> metadata )
-                    {
-                        handler.extractResultSummary( metadata );
-                        handler.afterSuccess( metadata );
-                        handler.completeRecordFuture( null );
-                        handler.completeFailureFuture( null );
-                    }
-                },
-        HasMore
-                {
-                    void onSuccess( PullNRequestAndResponseHandler handler, Map<String,Value> metadata )
-                    {
-                        handler.pull( AUTO_PULL_SIZE );
-                        handler.status = Streaming;
-                    }
-                },
-        Failed
-                {
-                    void onSuccess( PullNRequestAndResponseHandler handler, Map<String,Value> metadata )
-                    {
-                        // you cannot be succeed if you are already failed.
-                        throw new IllegalStateException( metadata.toString() );
-                    }
-
-                    void onFailure( PullNRequestAndResponseHandler handler, Throwable error )
-                    {
-                        handler.extractResultSummary( emptyMap() );
-                        handler.afterFailure( error );
-
-                        boolean failedRecordFuture = handler.failRecordFuture( error );
-                        if ( failedRecordFuture )
-                        {
-                            // error propagated through the record future
-                            handler.completeFailureFuture( null );
-                        }
-                        else
-                        {
-                            boolean completedFailureFuture = handler.completeFailureFuture( error );
-                            if ( !completedFailureFuture )
-                            {
-                                // error has not been propagated to the user, remember it
-                                handler.failure = error;
-                            }
-                        }
-                    }
-                },
-        Cancelled
-                {
-                    void onRecord( PullNRequestAndResponseHandler handler, Value[] fields )
-                    {
-                        // discard records
-                        handler.completeRecordFuture( null );
-                    }
-                };
-
-        void onSuccess( PullNRequestAndResponseHandler handler, Map<String,Value> metadata )
-        {
-            if ( metadata.getOrDefault( "has_more", BooleanValue.FALSE ).asBoolean() )
-            {
-                handler.status = HasMore;
-            }
-            else
-            {
-                handler.status = Finished;
-            }
-            handler.status.onSuccess( handler, metadata );
-        }
-
-        void onFailure( PullNRequestAndResponseHandler handler, Throwable error )
-        {
-            handler.status = Failed;
-            handler.status.onFailure( handler, error );
-        }
-
-        void onRecord( PullNRequestAndResponseHandler handler, Value[] fields )
-        {
-            throw new IllegalStateException( Arrays.toString( fields ) );
-        }
-    }
-
-    public PullNRequestAndResponseHandler( Statement statement, RunResponseHandler runResponseHandler, Connection connection, MetadataExtractor metadataExtractor )
+    public AbstractPullAllResponseHandler( Statement statement, RunResponseHandler runResponseHandler, Connection connection, MetadataExtractor metadataExtractor )
     {
         this.statement = requireNonNull( statement );
         this.runResponseHandler = requireNonNull( runResponseHandler );
         this.metadataExtractor = requireNonNull( metadataExtractor );
         this.connection = requireNonNull( connection );
-        prePull();
     }
-
-    private void prePull()
-    {
-        pull( AUTO_PULL_SIZE );
-        this.status = Status.Streaming;
-    }
-
 
     @Override
     public synchronized void onSuccess( Map<String,Value> metadata )
     {
-        this.status.onSuccess( this, metadata );
+        finished = true;
+        summary = extractResultSummary( metadata );
+
+        afterSuccess( metadata );
+
+        completeRecordFuture( null );
+        completeFailureFuture( null );
     }
 
     protected abstract void afterSuccess( Map<String,Value> metadata );
@@ -200,7 +93,26 @@ public abstract class PullNRequestAndResponseHandler implements PullHandler
     @Override
     public synchronized void onFailure( Throwable error )
     {
-        this.status.onFailure( this, error );
+        finished = true;
+        summary = extractResultSummary( emptyMap() );
+
+        afterFailure( error );
+
+        boolean failedRecordFuture = failRecordFuture( error );
+        if ( failedRecordFuture )
+        {
+            // error propagated through the record future
+            completeFailureFuture( null );
+        }
+        else
+        {
+            boolean completedFailureFuture = completeFailureFuture( error );
+            if ( !completedFailureFuture )
+            {
+                // error has not been propagated to the user, remember it
+                failure = error;
+            }
+        }
     }
 
     protected abstract void afterFailure( Throwable error );
@@ -208,25 +120,22 @@ public abstract class PullNRequestAndResponseHandler implements PullHandler
     @Override
     public synchronized void onRecord( Value[] fields )
     {
-        this.status.onRecord( this, fields );
-    }
-
-    // whenever you call this method we pull n for you.
-    // even if there is enough records buffered locally.
-    // we "trust" you can use this method correctly.
-    @Override
-    public void pull( long size )
-    {
-        connection.writeAndFlush( new PullNMessage( size ), this );
-    }
-
-    @Override
-    public void cancel()
-    {
-        if( !isCancelled )
+        if ( ignoreRecords )
         {
-            isCancelled = true;
+            completeRecordFuture( null );
         }
+        else
+        {
+            Record record = new InternalRecord( runResponseHandler.statementKeys(), fields );
+            enqueueRecord( record );
+            completeRecordFuture( record );
+        }
+    }
+
+    @Override
+    public synchronized void disableAutoReadManagement()
+    {
+        autoReadManagementEnabled = false;
     }
 
     public synchronized CompletionStage<Record> peekAsync()
@@ -239,7 +148,7 @@ public abstract class PullNRequestAndResponseHandler implements PullHandler
                 return failedFuture( extractFailure() );
             }
 
-            if ( this.status == Status.Cancelled || isFinished() )
+            if ( ignoreRecords || finished )
             {
                 return completedWithNull();
             }
@@ -263,7 +172,8 @@ public abstract class PullNRequestAndResponseHandler implements PullHandler
 
     public synchronized CompletionStage<ResultSummary> summaryAsync()
     {
-        return failureAsync().thenApply( error -> {
+        return failureAsync().thenApply( error ->
+        {
             if ( error != null )
             {
                 throw Futures.asCompletionException( error );
@@ -274,13 +184,15 @@ public abstract class PullNRequestAndResponseHandler implements PullHandler
 
     public synchronized CompletionStage<ResultSummary> consumeAsync()
     {
+        ignoreRecords = true;
         records.clear();
         return summaryAsync();
     }
 
     public synchronized <T> CompletionStage<List<T>> listAsync( Function<Record,T> mapFunction )
     {
-        return failureAsync().thenApply( error -> {
+        return failureAsync().thenApply( error ->
+        {
             if ( error != null )
             {
                 throw Futures.asCompletionException( error );
@@ -295,7 +207,7 @@ public abstract class PullNRequestAndResponseHandler implements PullHandler
         {
             return completedFuture( extractFailure() );
         }
-        else if ( isFinished() )
+        else if ( finished )
         {
             return completedWithNull();
         }
@@ -303,6 +215,10 @@ public abstract class PullNRequestAndResponseHandler implements PullHandler
         {
             if ( failureFuture == null )
             {
+                // neither SUCCESS nor FAILURE message has arrived, register future to be notified when it arrives
+                // future will be completed with null on SUCCESS and completed with Throwable on FAILURE
+                // enable auto-read, otherwise we might not read SUCCESS/FAILURE if records are not consumed
+                enableAutoRead();
                 failureFuture = new CompletableFuture<>();
             }
             return failureFuture;
@@ -317,16 +233,37 @@ public abstract class PullNRequestAndResponseHandler implements PullHandler
         }
 
         records.add( record );
+
+        boolean shouldBufferAllRecords = failureFuture != null;
+        // when failure is requested we have to buffer all remaining records and then return the error
+        // do not disable auto-read in this case, otherwise records will not be consumed and trailing
+        // SUCCESS or FAILURE message will not arrive as well, so callers will get stuck waiting for the error
+        if ( !shouldBufferAllRecords && records.size() > RECORD_BUFFER_HIGH_WATERMARK )
+        {
+            // more than high watermark records are already queued, tell connection to stop auto-reading from network
+            // this is needed to deal with slow consumers, we do not want to buffer all records in memory if they are
+            // fetched from network faster than consumed
+            disableAutoRead();
+        }
     }
 
     private Record dequeueRecord()
     {
-        return records.poll();
+        Record record = records.poll();
+
+        if ( records.size() < RECORD_BUFFER_LOW_WATERMARK )
+        {
+            // less than low watermark records are now available in the buffer, tell connection to pre-fetch more
+            // and populate queue with new records from network
+            enableAutoRead();
+        }
+
+        return record;
     }
 
     private <T> List<T> recordsAsList( Function<Record,T> mapFunction )
     {
-        if ( !isFinished() )
+        if ( !finished )
         {
             throw new IllegalStateException( "Can't get records as list because SUCCESS or FAILURE did not arrive" );
         }
@@ -386,14 +323,25 @@ public abstract class PullNRequestAndResponseHandler implements PullHandler
         return false;
     }
 
-    private void extractResultSummary( Map<String,Value> metadata )
+    private ResultSummary extractResultSummary( Map<String,Value> metadata )
     {
         long resultAvailableAfter = runResponseHandler.resultAvailableAfter();
-        summary = metadataExtractor.extractSummary( statement, connection, resultAvailableAfter, metadata );
+        return metadataExtractor.extractSummary( statement, connection, resultAvailableAfter, metadata );
     }
 
-    private boolean isFinished()
+    private void enableAutoRead()
     {
-        return this.status == Status.Finished || this.status == Status.Failed;
+        if ( autoReadManagementEnabled )
+        {
+            connection.enableAutoRead();
+        }
+    }
+
+    private void disableAutoRead()
+    {
+        if ( autoReadManagementEnabled )
+        {
+            connection.disableAutoRead();
+        }
     }
 }

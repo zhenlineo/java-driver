@@ -16,35 +16,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.driver.internal;
+package org.neo4j.driver.react.result;
 
-import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscription;
-
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import org.neo4j.driver.internal.handlers.PullHandler;
 import org.neo4j.driver.internal.handlers.RunResponseHandler;
+import org.neo4j.driver.internal.handlers.pulln.PullResponseHandler;
 import org.neo4j.driver.internal.util.Futures;
 import org.neo4j.driver.v1.Record;
-import org.neo4j.driver.v1.StatementResultCursor;
 import org.neo4j.driver.v1.exceptions.NoSuchRecordException;
 import org.neo4j.driver.v1.summary.ResultSummary;
 import org.neo4j.driver.v1.util.Consumer;
 import org.neo4j.driver.v1.util.Function;
 import org.neo4j.driver.v1.util.Functions;
 
-public class InternalStatementResultCursor implements StatementResultCursor
+public class AsyncStatementResultCursor implements InternalStatementResultCursor
 {
     private final RunResponseHandler runResponseHandler;
-    private final PullHandler pullHandler;
+    private final PullResponseHandler pullResponseHandler;
 
-    public InternalStatementResultCursor( RunResponseHandler runResponseHandler, PullHandler pullAllHandler )
+    public AsyncStatementResultCursor( RunResponseHandler runResponseHandler, PullResponseHandler pullResponseHandler )
     {
         this.runResponseHandler = runResponseHandler;
-        this.pullHandler = pullAllHandler;
+        this.pullResponseHandler = pullResponseHandler;
     }
 
     @Override
@@ -56,19 +53,19 @@ public class InternalStatementResultCursor implements StatementResultCursor
     @Override
     public CompletionStage<ResultSummary> summaryAsync()
     {
-        return pullHandler.summaryAsync();
+        return pullResponseHandler.summary();
     }
 
     @Override
     public CompletionStage<Record> nextAsync()
     {
-        return pullHandler.nextAsync();
+        return pullResponseHandler.nextRecord();
     }
 
     @Override
     public CompletionStage<Record> peekAsync()
     {
-        return pullHandler.peekAsync();
+        return pullResponseHandler.peekRecord();
     }
 
     @Override
@@ -94,7 +91,8 @@ public class InternalStatementResultCursor implements StatementResultCursor
     @Override
     public CompletionStage<ResultSummary> consumeAsync()
     {
-        return pullHandler.consumeAsync();
+        pullResponseHandler.cancel();
+        return pullResponseHandler.summary();
     }
 
     @Override
@@ -114,44 +112,30 @@ public class InternalStatementResultCursor implements StatementResultCursor
     @Override
     public <T> CompletionStage<List<T>> listAsync( Function<Record,T> mapFunction )
     {
-        return pullHandler.listAsync( mapFunction );
-    }
-
-    @Override
-    public Publisher<Record> publisher()
-    {
-        return s -> s.onSubscribe( new Subscription()
-        {
-            @Override
-            public void request( long n )
+        pullResponseHandler.request( Long.MAX_VALUE );
+        return failureAsync().thenApply( error -> {
+            if ( error != null )
             {
-                // pull_n
-                pullHandler.pull( n );
-                forEachAsync( s::onNext ).whenComplete( ( summary, error ) -> {
-                    if ( summary != null )
-                    {
-                        s.onComplete();
-                    }
-                    else if ( error != null )
-                    {
-                        s.onError( error );
-                    }
-                    // else not yet there. you shall pull more
-                } );
+                throw Futures.asCompletionException( error );
             }
-
-            @Override
-            public void cancel()
+            else
             {
-                // discard_all;
-                pullHandler.cancel();
+                List<T> result = new ArrayList<>( pullResponseHandler.queue().size() );
+                while ( !pullResponseHandler.queue().isEmpty() )
+                {
+                    Record record = pullResponseHandler.queue().poll();
+                    result.add( mapFunction.apply( record ) );
+                }
+                return result;
             }
         } );
     }
 
     public CompletionStage<Throwable> failureAsync()
     {
-        return pullHandler.failureAsync();
+        return pullResponseHandler.summary()
+                .thenApply( summary -> (Throwable) null )
+                .exceptionally( error -> error );
     }
 
     private void internalForEachAsync( Consumer<Record> action, CompletableFuture<Void> resultFuture )

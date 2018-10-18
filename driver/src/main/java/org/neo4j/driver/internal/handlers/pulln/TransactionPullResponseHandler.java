@@ -16,11 +16,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.driver.internal.handlers;
+package org.neo4j.driver.internal.handlers.pulln;
 
 import java.util.Map;
 
 import org.neo4j.driver.internal.ExplicitTransaction;
+import org.neo4j.driver.internal.handlers.RunResponseHandler;
 import org.neo4j.driver.internal.spi.Connection;
 import org.neo4j.driver.internal.util.MetadataExtractor;
 import org.neo4j.driver.v1.Statement;
@@ -28,11 +29,11 @@ import org.neo4j.driver.v1.Value;
 
 import static java.util.Objects.requireNonNull;
 
-public class TransactionPullNResponseHandler extends PullNRequestAndResponseHandler
+public class TransactionPullResponseHandler extends AbstractBasicPullResponseHandler
 {
     private final ExplicitTransaction tx;
 
-    public TransactionPullNResponseHandler( Statement statement, RunResponseHandler runResponseHandler,
+    public TransactionPullResponseHandler( Statement statement, RunResponseHandler runResponseHandler,
             Connection connection, ExplicitTransaction tx, MetadataExtractor metadataExtractor )
     {
         super( statement, runResponseHandler, connection, metadataExtractor );

@@ -25,6 +25,8 @@ import java.util.Objects;
 import org.neo4j.driver.v1.Value;
 import org.neo4j.driver.v1.Values;
 
+import static org.neo4j.driver.internal.util.MetadataExtractor.ABSENT_STATEMENT_ID;
+
 /**
  * PULL_N request message
  * <p>
@@ -34,11 +36,16 @@ public class PullNMessage extends PullAllMessage
 {
     private final Map<String,Value> metadata = new HashMap<>();
 
-    public PullNMessage( long n )
+    public PullNMessage( long n, long id )
     {
         super();
         this.metadata.put( "n", Values.value( n ) );
+        if ( id != ABSENT_STATEMENT_ID )
+        {
+            this.metadata.put( "stmt_id", Values.value( id ) );
+        }
     }
+
 
     public Map<String,Value> metadata()
     {
