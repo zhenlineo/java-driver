@@ -35,7 +35,7 @@ public interface BasicPullResponseHandler extends ResponseHandler, Subscription
 
     /**
      * Register a record consumer for each record received.
-     * This consumer shall not be registered after streaming started.
+     * This consumer shall be registered before streaming started.
      * A null record with no error indicates the termination of streaming.
      * @param recordConsumer register a record consumer to be called back for each record received.
      */

@@ -18,16 +18,17 @@
  */
 package org.neo4j.driver.react.result;
 
+import reactor.core.publisher.Flux;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.neo4j.driver.internal.handlers.RunResponseHandler;
-import org.neo4j.driver.internal.handlers.pulln.PullResponseHandler;
+import org.neo4j.driver.internal.handlers.pulln.BasicPullResponseHandler;
 import org.neo4j.driver.internal.util.Futures;
 import org.neo4j.driver.v1.Record;
-import org.neo4j.driver.v1.exceptions.NoSuchRecordException;
 import org.neo4j.driver.v1.summary.ResultSummary;
 import org.neo4j.driver.v1.util.Consumer;
 import org.neo4j.driver.v1.util.Function;
@@ -35,13 +36,48 @@ import org.neo4j.driver.v1.util.Functions;
 
 public class AsyncStatementResultCursor implements InternalStatementResultCursor
 {
-    private final RunResponseHandler runResponseHandler;
-    private final PullResponseHandler pullResponseHandler;
+    private static final int RECORD_BUFFER_HIGH_WATERMARK = Integer.getInteger( "recordBufferHighWatermark", 1000 );
 
-    public AsyncStatementResultCursor( RunResponseHandler runResponseHandler, PullResponseHandler pullResponseHandler )
+    private final RunResponseHandler runResponseHandler;
+
+    private final CompletableFuture<ResultSummary> summaryFuture = new CompletableFuture<>();
+    private final Flux<Record> recordFlux;
+    private CompletableFuture<Record> peeked;
+
+    public AsyncStatementResultCursor( RunResponseHandler runResponseHandler, BasicPullResponseHandler pullResponseHandler )
     {
         this.runResponseHandler = runResponseHandler;
-        this.pullResponseHandler = pullResponseHandler;
+        pullResponseHandler.installSummaryConsumer( ( summary, error ) -> {
+            if ( summary != null )
+            {
+                summaryFuture.complete( summary );
+            }
+            else if ( error != null )
+            {
+                summaryFuture.completeExceptionally( error );
+            }
+        } );
+
+        recordFlux = Flux.create( sink -> {
+            pullResponseHandler.installRecordConsumer( ( record, throwable ) -> {
+                if ( record != null )
+                {
+                    sink.next( record );
+                }
+                else if ( throwable != null )
+                {
+                    sink.error( throwable );
+                }
+                else
+                {
+                    sink.complete();
+                }
+            } );
+            sink.onRequest( pullResponseHandler::request );
+            sink.onCancel( pullResponseHandler::cancel );
+        } );
+
+        recordFlux.limitRate( RECORD_BUFFER_HIGH_WATERMARK );
     }
 
     @Override
@@ -53,54 +89,52 @@ public class AsyncStatementResultCursor implements InternalStatementResultCursor
     @Override
     public CompletionStage<ResultSummary> summaryAsync()
     {
-        return pullResponseHandler.summary();
+        return summaryFuture;
     }
 
     @Override
     public CompletionStage<Record> nextAsync()
     {
-        return pullResponseHandler.nextRecord();
+        if ( peeked != null )
+        {
+            CompletableFuture<Record> toReturn = this.peeked;
+            this.peeked = null;
+            return toReturn;
+        }
+        else
+        {
+            return recordFlux.next().toFuture();
+        }
     }
 
     @Override
     public CompletionStage<Record> peekAsync()
     {
-        return pullResponseHandler.peekRecord();
+        if ( peeked == null )
+        {
+            peeked = recordFlux.next().toFuture();
+        }
+        return peeked;
     }
 
     @Override
     public CompletionStage<Record> singleAsync()
     {
-        return nextAsync().thenCompose( firstRecord -> {
-            if ( firstRecord == null )
-            {
-                throw new NoSuchRecordException( "Cannot retrieve a single record, because this result is empty." );
-            }
-            return nextAsync().thenApply( secondRecord -> {
-                if ( secondRecord != null )
-                {
-                    throw new NoSuchRecordException(
-                            "Expected a result with a single record, but this result " + "contains at least one more. Ensure your query returns only " +
-                                    "one record." );
-                }
-                return firstRecord;
-            } );
-        } );
+        return recordFlux.single().toFuture();
     }
 
     @Override
     public CompletionStage<ResultSummary> consumeAsync()
     {
-        pullResponseHandler.cancel();
-        return pullResponseHandler.summary();
+        recordFlux.ignoreElements();
+        return summaryAsync();
     }
 
     @Override
     public CompletionStage<ResultSummary> forEachAsync( Consumer<Record> action )
     {
-        CompletableFuture<Void> resultFuture = new CompletableFuture<>();
-        internalForEachAsync( action, resultFuture );
-        return resultFuture.thenCompose( ignore -> summaryAsync() );
+        recordFlux.doOnNext( action::accept );
+        return summaryAsync();
     }
 
     @Override
@@ -112,7 +146,11 @@ public class AsyncStatementResultCursor implements InternalStatementResultCursor
     @Override
     public <T> CompletionStage<List<T>> listAsync( Function<Record,T> mapFunction )
     {
-        pullResponseHandler.request( Long.MAX_VALUE );
+        List<T> values = new ArrayList<>();
+        recordFlux.doOnNext( record -> {
+            values.add( mapFunction.apply( record ) );
+        } );
+
         return failureAsync().thenApply( error -> {
             if ( error != null )
             {
@@ -120,53 +158,13 @@ public class AsyncStatementResultCursor implements InternalStatementResultCursor
             }
             else
             {
-                List<T> result = new ArrayList<>( pullResponseHandler.queue().size() );
-                while ( !pullResponseHandler.queue().isEmpty() )
-                {
-                    Record record = pullResponseHandler.queue().poll();
-                    result.add( mapFunction.apply( record ) );
-                }
-                return result;
+                return values;
             }
         } );
     }
 
     public CompletionStage<Throwable> failureAsync()
     {
-        return pullResponseHandler.summary()
-                .thenApply( summary -> (Throwable) null )
-                .exceptionally( error -> error );
-    }
-
-    private void internalForEachAsync( Consumer<Record> action, CompletableFuture<Void> resultFuture )
-    {
-        CompletionStage<Record> recordFuture = nextAsync();
-
-        // use async completion listener because of recursion, otherwise it is possible for
-        // the caller thread to get StackOverflowError when result is large and buffered
-        recordFuture.whenCompleteAsync( ( record, completionError ) -> {
-            Throwable error = Futures.completionExceptionCause( completionError );
-            if ( error != null )
-            {
-                resultFuture.completeExceptionally( error );
-            }
-            else if ( record != null )
-            {
-                try
-                {
-                    action.accept( record );
-                }
-                catch ( Throwable actionError )
-                {
-                    resultFuture.completeExceptionally( actionError );
-                    return;
-                }
-                internalForEachAsync( action, resultFuture );
-            }
-            else
-            {
-                resultFuture.complete( null );
-            }
-        } );
+        return summaryAsync().thenApply( summary -> (Throwable) null ).exceptionally( error -> error );
     }
 }

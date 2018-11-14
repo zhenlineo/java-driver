@@ -21,7 +21,6 @@ package org.neo4j.driver.react.result;
 import org.neo4j.driver.internal.BookmarksHolder;
 import org.neo4j.driver.internal.ExplicitTransaction;
 import org.neo4j.driver.internal.handlers.RunResponseHandler;
-import org.neo4j.driver.internal.handlers.pulln.AsyncPullResponseHandler;
 import org.neo4j.driver.internal.handlers.pulln.BasicPullResponseHandler;
 import org.neo4j.driver.internal.handlers.pulln.SessionPullResponseHandler;
 import org.neo4j.driver.internal.handlers.pulln.TransactionPullResponseHandler;
@@ -51,7 +50,7 @@ public class InternalStatementResultCursorFactory implements StatementResultCurs
     public InternalStatementResultCursor asyncResult()
     {
         BasicPullResponseHandler pullResponseHandler = newPullHandler( statement, runHandler, connection, bookmarksHolder, tx );
-        return new AsyncStatementResultCursor( runHandler, new AsyncPullResponseHandler( pullResponseHandler ) );
+        return new AsyncStatementResultCursor( runHandler, pullResponseHandler );
     }
 
     @Override
