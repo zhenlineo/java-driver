@@ -41,12 +41,14 @@ public class AsyncStatementResultCursor implements InternalStatementResultCursor
     private final RunResponseHandler runResponseHandler;
 
     private final CompletableFuture<ResultSummary> summaryFuture = new CompletableFuture<>();
-    private final Flux<Record> recordFlux;
+    private final BasicPullResponseHandler pullResponseHandler;
+    private Flux<Record> recordFlux;
     private CompletableFuture<Record> peeked;
 
     public AsyncStatementResultCursor( RunResponseHandler runResponseHandler, BasicPullResponseHandler pullResponseHandler )
     {
         this.runResponseHandler = runResponseHandler;
+        this.pullResponseHandler = pullResponseHandler;
         pullResponseHandler.installSummaryConsumer( ( summary, error ) -> {
             if ( summary != null )
             {
@@ -59,6 +61,7 @@ public class AsyncStatementResultCursor implements InternalStatementResultCursor
         } );
 
         recordFlux = Flux.create( sink -> {
+//            sink.onCancel( pullResponseHandler::cancel );
             pullResponseHandler.installRecordConsumer( ( record, throwable ) -> {
                 if ( record != null )
                 {
@@ -74,10 +77,9 @@ public class AsyncStatementResultCursor implements InternalStatementResultCursor
                 }
             } );
             sink.onRequest( pullResponseHandler::request );
-            sink.onCancel( pullResponseHandler::cancel );
         } );
 
-        recordFlux.limitRate( RECORD_BUFFER_HIGH_WATERMARK );
+        recordFlux = recordFlux.limitRate( RECORD_BUFFER_HIGH_WATERMARK );
     }
 
     @Override
@@ -126,14 +128,15 @@ public class AsyncStatementResultCursor implements InternalStatementResultCursor
     @Override
     public CompletionStage<ResultSummary> consumeAsync()
     {
-        recordFlux.ignoreElements();
+        pullResponseHandler.cancel();
         return summaryAsync();
     }
 
     @Override
     public CompletionStage<ResultSummary> forEachAsync( Consumer<Record> action )
     {
-        recordFlux.doOnNext( action::accept );
+        recordFlux = recordFlux.doOnNext( action::accept );
+        recordFlux.subscribe();
         return summaryAsync();
     }
 
@@ -147,9 +150,10 @@ public class AsyncStatementResultCursor implements InternalStatementResultCursor
     public <T> CompletionStage<List<T>> listAsync( Function<Record,T> mapFunction )
     {
         List<T> values = new ArrayList<>();
-        recordFlux.doOnNext( record -> {
+        recordFlux = recordFlux.doOnNext( record -> {
             values.add( mapFunction.apply( record ) );
         } );
+        recordFlux.subscribe();
 
         return failureAsync().thenApply( error -> {
             if ( error != null )

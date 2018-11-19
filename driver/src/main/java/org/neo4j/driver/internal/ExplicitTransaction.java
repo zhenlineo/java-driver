@@ -26,6 +26,7 @@ import org.neo4j.driver.internal.async.ResultCursorsHolder;
 import org.neo4j.driver.internal.messaging.BoltProtocol;
 import org.neo4j.driver.internal.spi.Connection;
 import org.neo4j.driver.internal.util.Futures;
+import org.neo4j.driver.react.result.InternalStatementResultCursor;
 import org.neo4j.driver.v1.Session;
 import org.neo4j.driver.v1.Statement;
 import org.neo4j.driver.v1.StatementResult;
@@ -187,12 +188,12 @@ public class ExplicitTransaction extends AbstractStatementRunner implements Tran
         return (CompletionStage) run( statement, true );
     }
 
-    private CompletionStage<LegacyInternalStatementResultCursor> run( Statement statement, boolean waitForRunResponse )
+    private CompletionStage<InternalStatementResultCursor> run( Statement statement, boolean waitForRunResponse )
     {
         ensureCanRunQueries();
-        CompletionStage<LegacyInternalStatementResultCursor> cursorStage =
+        CompletionStage<InternalStatementResultCursor> cursorStage =
                 protocol.runInExplicitTransaction( connection, statement, this, waitForRunResponse ).thenApply(
-                        cursorFactory -> (LegacyInternalStatementResultCursor) cursorFactory.asyncResult() );
+                        cursorFactory -> cursorFactory.asyncResult() );
         resultCursors.add( cursorStage );
         return cursorStage;
     }

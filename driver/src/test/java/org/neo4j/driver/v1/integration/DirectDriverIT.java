@@ -65,7 +65,7 @@ class DirectDriverIT
     {
         // Given
         URI uri = URI.create( "bolt://[::1]:" + neo4j.boltPort() );
-        BoltServerAddress address = new BoltServerAddress( uri );
+        BoltServerAddress address = new BoltServerAddress( neo4j.uri() );
 
         // When
         driver = GraphDatabase.driver( uri, neo4j.authToken() );
