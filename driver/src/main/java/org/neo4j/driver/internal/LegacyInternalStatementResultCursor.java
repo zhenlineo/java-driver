@@ -113,9 +113,9 @@ public class LegacyInternalStatementResultCursor implements InternalStatementRes
     }
 
     @Override
-    public <T> CompletionStage<List<T>> listAsync( Function<Record,T> mapFunction )
+    public <T> CompletableFuture<List<T>> listAsync( Function<Record,T> mapFunction )
     {
-        return pullAllHandler.listAsync( mapFunction );
+        return (CompletableFuture<List<T>>) pullAllHandler.listAsync( mapFunction );
     }
 
     @Override

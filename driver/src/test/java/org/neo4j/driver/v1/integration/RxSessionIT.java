@@ -59,14 +59,17 @@ class RxSessionIT
         Session session = driver.session();
         StatementResult result = session.run( "UNWIND range(1, 100) as n RETURN n" );
 
-//        while( result.hasNext() )
-//        {
-//            System.out.println( result.next() );
-//        }
-        result.list(record -> {
-            System.out.println(record);
-            return record;
-        });
+//        System.out.println( result.summary() );
+
+        while( result.hasNext() )
+        {
+            System.out.println( result.next() );
+        }
+//
+//        result.list(record -> {
+//            System.out.println(record);
+//            return record;
+//        });
 //        result.stream().forEach( r -> System.out.println( r ) );
         System.out.println( result.summary() );
         driver.close();

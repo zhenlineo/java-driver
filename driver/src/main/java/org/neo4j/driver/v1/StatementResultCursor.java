@@ -19,6 +19,7 @@
 package org.neo4j.driver.v1;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 
@@ -154,10 +155,10 @@ public interface StatementResultCursor
      * <p>
      * Calling this method exhausts the result.
      *
-     * @param mapFunction a function to map from Record to T. See {@link Records} for some predefined functions.
      * @param <T> the type of result list elements
+     * @param mapFunction a function to map from Record to T. See {@link Records} for some predefined functions.
      * @return a {@link CompletionStage} completed with a list of all remaining immutable records. Stage can also be
      * completed exceptionally if query execution or provided function fails.
      */
-    <T> CompletionStage<List<T>> listAsync( Function<Record,T> mapFunction );
+    <T> CompletableFuture<List<T>> listAsync( Function<Record,T> mapFunction );
 }

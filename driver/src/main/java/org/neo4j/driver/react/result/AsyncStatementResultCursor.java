@@ -20,7 +20,6 @@ package org.neo4j.driver.react.result;
 
 import reactor.core.publisher.Flux;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -43,7 +42,6 @@ public class AsyncStatementResultCursor implements InternalStatementResultCursor
     private final CompletableFuture<ResultSummary> summaryFuture = new CompletableFuture<>();
     private final BasicPullResponseHandler pullResponseHandler;
     private Flux<Record> recordFlux;
-    private CompletableFuture<Record> peeked;
 
     public AsyncStatementResultCursor( RunResponseHandler runResponseHandler, BasicPullResponseHandler pullResponseHandler )
     {
@@ -91,32 +89,36 @@ public class AsyncStatementResultCursor implements InternalStatementResultCursor
     @Override
     public CompletionStage<ResultSummary> summaryAsync()
     {
+        recordFlux = recordFlux.cache();
+        recordFlux.subscribe();
         return summaryFuture;
     }
 
     @Override
     public CompletionStage<Record> nextAsync()
     {
-        if ( peeked != null )
-        {
-            CompletableFuture<Record> toReturn = this.peeked;
-            this.peeked = null;
-            return toReturn;
-        }
-        else
-        {
-            return recordFlux.next().toFuture();
-        }
+        return recordFlux..next().toFuture();
+//        if ( peeked != null )
+//        {
+//            CompletableFuture<Record> toReturn = this.peeked;
+//            this.peeked = null;
+//            return toReturn;
+//        }
+//        else
+//        {
+//            return recordFlux.next().toFuture();
+//        }
     }
 
     @Override
     public CompletionStage<Record> peekAsync()
     {
-        if ( peeked == null )
-        {
-            peeked = recordFlux.next().toFuture();
-        }
-        return peeked;
+//        if ( peeked == null )
+//        {
+//            peeked = recordFlux.next().toFuture();
+//        }
+//        return peeked;
+        return Futures.completedWithNull();
     }
 
     @Override
@@ -147,28 +149,34 @@ public class AsyncStatementResultCursor implements InternalStatementResultCursor
     }
 
     @Override
-    public <T> CompletionStage<List<T>> listAsync( Function<Record,T> mapFunction )
+    public <T> CompletableFuture<List<T>> listAsync( Function<Record,T> mapFunction )
     {
-        List<T> values = new ArrayList<>();
-        recordFlux = recordFlux.doOnNext( record -> {
-            values.add( mapFunction.apply( record ) );
-        } );
-        recordFlux.subscribe();
-
-        return failureAsync().thenApply( error -> {
-            if ( error != null )
-            {
-                throw Futures.asCompletionException( error );
-            }
-            else
-            {
-                return values;
-            }
-        } );
+        return recordFlux.map( mapFunction::apply ).collectList().toFuture();
+//        List<T> values = new ArrayList<>();
+//        recordFlux = recordFlux.doOnNext( record -> {
+//            values.add( mapFunction.apply( record ) );
+//        } );
+//        recordFlux.subscribe();
+//
+//        return failureAsync().thenApply( error -> {
+//            if ( error != null )
+//            {
+//                throw Futures.asCompletionException( error );
+//            }
+//            else
+//            {
+//                return values;
+//            }
+//        } );
     }
 
     public CompletionStage<Throwable> failureAsync()
     {
         return summaryAsync().thenApply( summary -> (Throwable) null ).exceptionally( error -> error );
+    }
+
+    public CompletionStage<Boolean> hasNext()
+    {
+        return recordFlux.hasElements().toFuture();
     }
 }

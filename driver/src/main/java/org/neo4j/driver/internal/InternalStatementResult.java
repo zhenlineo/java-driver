@@ -27,6 +27,7 @@ import java.util.stream.StreamSupport;
 
 import org.neo4j.driver.internal.spi.Connection;
 import org.neo4j.driver.internal.util.Futures;
+import org.neo4j.driver.react.result.AsyncStatementResultCursor;
 import org.neo4j.driver.v1.Record;
 import org.neo4j.driver.v1.StatementResult;
 import org.neo4j.driver.v1.StatementResultCursor;
@@ -61,7 +62,8 @@ public class InternalStatementResult implements StatementResult
     @Override
     public boolean hasNext()
     {
-        return blockingGet( cursor.peekAsync() ) != null;
+//        return blockingGet( cursor.peekAsync() ) != null;
+        return blockingGet( ((AsyncStatementResultCursor) cursor).hasNext() );
     }
 
     @Override
@@ -106,7 +108,7 @@ public class InternalStatementResult implements StatementResult
     }
 
     @Override
-    public <T> List<T> list( Function<Record, T> mapFunction )
+    public <T> List<T> list( Function<Record,T> mapFunction )
     {
         return blockingGet( cursor.listAsync( mapFunction ) );
     }
