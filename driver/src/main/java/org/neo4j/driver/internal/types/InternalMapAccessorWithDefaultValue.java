@@ -20,16 +20,16 @@ package org.neo4j.driver.internal.types;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
+import org.neo4j.driver.Value;
+import org.neo4j.driver.Values;
 import org.neo4j.driver.internal.AsValue;
-import org.neo4j.driver.v1.Value;
-import org.neo4j.driver.v1.Values;
-import org.neo4j.driver.v1.types.Entity;
-import org.neo4j.driver.v1.types.MapAccessorWithDefaultValue;
-import org.neo4j.driver.v1.types.Node;
-import org.neo4j.driver.v1.types.Path;
-import org.neo4j.driver.v1.types.Relationship;
-import org.neo4j.driver.v1.util.Function;
+import org.neo4j.driver.types.Entity;
+import org.neo4j.driver.types.MapAccessorWithDefaultValue;
+import org.neo4j.driver.types.Node;
+import org.neo4j.driver.types.Path;
+import org.neo4j.driver.types.Relationship;
 
 public abstract class InternalMapAccessorWithDefaultValue implements MapAccessorWithDefaultValue
 {

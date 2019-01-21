@@ -21,14 +21,14 @@ package org.neo4j.driver.internal.summary;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
-import org.neo4j.driver.v1.Value;
-import org.neo4j.driver.v1.Values;
-import org.neo4j.driver.v1.summary.Plan;
-import org.neo4j.driver.v1.util.Function;
+import org.neo4j.driver.Value;
+import org.neo4j.driver.Values;
+import org.neo4j.driver.summary.Plan;
 
 import static java.lang.String.format;
-import static org.neo4j.driver.v1.Values.ofString;
+import static org.neo4j.driver.Values.ofString;
 
 public class InternalPlan<T extends Plan> implements Plan
 {

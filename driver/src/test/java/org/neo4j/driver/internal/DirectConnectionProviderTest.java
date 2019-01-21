@@ -32,9 +32,9 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.neo4j.driver.v1.AccessMode.READ;
-import static org.neo4j.driver.v1.AccessMode.WRITE;
-import static org.neo4j.driver.v1.util.TestUtil.await;
+import static org.neo4j.driver.AccessMode.READ;
+import static org.neo4j.driver.AccessMode.WRITE;
+import static org.neo4j.driver.util.TestUtil.await;
 
 class DirectConnectionProviderTest
 {

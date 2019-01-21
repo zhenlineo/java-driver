@@ -21,8 +21,8 @@ package org.neo4j.driver.internal.logging;
 import io.netty.channel.Channel;
 
 import org.neo4j.driver.internal.async.ChannelAttributes;
-import org.neo4j.driver.v1.Logger;
-import org.neo4j.driver.v1.Logging;
+import org.neo4j.driver.Logger;
+import org.neo4j.driver.Logging;
 
 import static java.lang.String.format;
 

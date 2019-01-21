@@ -24,7 +24,7 @@ import org.neo4j.driver.internal.DriverFactory;
 import org.neo4j.driver.internal.retry.FixedRetryLogic;
 import org.neo4j.driver.internal.retry.RetryLogic;
 import org.neo4j.driver.internal.retry.RetrySettings;
-import org.neo4j.driver.v1.Logging;
+import org.neo4j.driver.Logging;
 
 public class DriverFactoryWithFixedRetryLogic extends DriverFactory
 {

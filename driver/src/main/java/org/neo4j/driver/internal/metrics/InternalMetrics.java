@@ -27,8 +27,8 @@ import org.neo4j.driver.internal.async.pool.ConnectionPoolImpl;
 import org.neo4j.driver.internal.metrics.spi.ConnectionMetrics;
 import org.neo4j.driver.internal.metrics.spi.ConnectionPoolMetrics;
 import org.neo4j.driver.internal.spi.ConnectionPool;
-import org.neo4j.driver.v1.Config;
-import org.neo4j.driver.v1.exceptions.ClientException;
+import org.neo4j.driver.Config;
+import org.neo4j.driver.exceptions.ClientException;
 
 import static java.lang.String.format;
 import static java.util.Collections.unmodifiableMap;

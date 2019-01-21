@@ -21,15 +21,15 @@ package org.neo4j.driver.internal.value;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.Function;
 
+import org.neo4j.driver.Value;
+import org.neo4j.driver.Values;
 import org.neo4j.driver.internal.types.InternalTypeSystem;
 import org.neo4j.driver.internal.util.Extract;
-import org.neo4j.driver.v1.Value;
-import org.neo4j.driver.v1.Values;
-import org.neo4j.driver.v1.types.Type;
-import org.neo4j.driver.v1.util.Function;
+import org.neo4j.driver.types.Type;
 
-import static org.neo4j.driver.v1.Values.ofObject;
+import static org.neo4j.driver.Values.ofObject;
 
 public class ListValue extends ValueAdapter
 {

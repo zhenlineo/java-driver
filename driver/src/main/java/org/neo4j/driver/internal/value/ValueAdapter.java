@@ -26,26 +26,26 @@ import java.time.OffsetTime;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
+import org.neo4j.driver.Value;
+import org.neo4j.driver.exceptions.value.NotMultiValued;
+import org.neo4j.driver.exceptions.value.Uncoercible;
+import org.neo4j.driver.exceptions.value.Unsizable;
 import org.neo4j.driver.internal.types.InternalMapAccessorWithDefaultValue;
 import org.neo4j.driver.internal.types.TypeConstructor;
 import org.neo4j.driver.internal.types.TypeRepresentation;
-import org.neo4j.driver.v1.Value;
-import org.neo4j.driver.v1.exceptions.value.NotMultiValued;
-import org.neo4j.driver.v1.exceptions.value.Uncoercible;
-import org.neo4j.driver.v1.exceptions.value.Unsizable;
-import org.neo4j.driver.v1.types.Entity;
-import org.neo4j.driver.v1.types.IsoDuration;
-import org.neo4j.driver.v1.types.Node;
-import org.neo4j.driver.v1.types.Path;
-import org.neo4j.driver.v1.types.Point;
-import org.neo4j.driver.v1.types.Relationship;
-import org.neo4j.driver.v1.types.Type;
-import org.neo4j.driver.v1.util.Function;
+import org.neo4j.driver.types.Entity;
+import org.neo4j.driver.types.IsoDuration;
+import org.neo4j.driver.types.Node;
+import org.neo4j.driver.types.Path;
+import org.neo4j.driver.types.Point;
+import org.neo4j.driver.types.Relationship;
+import org.neo4j.driver.types.Type;
 
 import static java.util.Collections.emptyList;
-import static org.neo4j.driver.v1.Values.ofObject;
-import static org.neo4j.driver.v1.Values.ofValue;
+import static org.neo4j.driver.Values.ofObject;
+import static org.neo4j.driver.Values.ofValue;
 
 public abstract class ValueAdapter extends InternalMapAccessorWithDefaultValue implements InternalValue
 {

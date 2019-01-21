@@ -22,7 +22,7 @@ import org.neo4j.driver.internal.ConnectionSettings;
 import org.neo4j.driver.internal.async.ChannelConnector;
 import org.neo4j.driver.internal.async.ChannelConnectorImpl;
 import org.neo4j.driver.internal.security.SecurityPlan;
-import org.neo4j.driver.v1.Config;
+import org.neo4j.driver.Config;
 
 public class ChannelTrackingDriverFactoryWithFailingMessageFormat extends ChannelTrackingDriverFactory
 {

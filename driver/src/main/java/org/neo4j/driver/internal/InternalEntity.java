@@ -19,16 +19,16 @@
 package org.neo4j.driver.internal;
 
 import java.util.Map;
+import java.util.function.Function;
 
+import org.neo4j.driver.Value;
+import org.neo4j.driver.Values;
 import org.neo4j.driver.internal.util.Extract;
 import org.neo4j.driver.internal.util.Iterables;
 import org.neo4j.driver.internal.value.MapValue;
-import org.neo4j.driver.v1.Value;
-import org.neo4j.driver.v1.Values;
-import org.neo4j.driver.v1.types.Entity;
-import org.neo4j.driver.v1.util.Function;
+import org.neo4j.driver.types.Entity;
 
-import static org.neo4j.driver.v1.Values.ofObject;
+import static org.neo4j.driver.Values.ofObject;
 
 public abstract class InternalEntity implements Entity, AsValue
 {

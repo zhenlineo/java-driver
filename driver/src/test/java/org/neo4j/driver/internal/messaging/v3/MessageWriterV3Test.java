@@ -42,9 +42,9 @@ import static org.neo4j.driver.internal.messaging.request.GoodbyeMessage.GOODBYE
 import static org.neo4j.driver.internal.messaging.request.PullAllMessage.PULL_ALL;
 import static org.neo4j.driver.internal.messaging.request.ResetMessage.RESET;
 import static org.neo4j.driver.internal.messaging.request.RollbackMessage.ROLLBACK;
-import static org.neo4j.driver.v1.AuthTokens.basic;
-import static org.neo4j.driver.v1.Values.point;
-import static org.neo4j.driver.v1.Values.value;
+import static org.neo4j.driver.AuthTokens.basic;
+import static org.neo4j.driver.Values.point;
+import static org.neo4j.driver.Values.value;
 
 class MessageWriterV3Test extends AbstractMessageWriterTestBase
 {

@@ -22,19 +22,19 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.function.Function;
 
+import org.neo4j.driver.Record;
+import org.neo4j.driver.Value;
+import org.neo4j.driver.Values;
 import org.neo4j.driver.internal.types.InternalMapAccessorWithDefaultValue;
 import org.neo4j.driver.internal.util.Extract;
-import org.neo4j.driver.v1.Record;
-import org.neo4j.driver.v1.Value;
-import org.neo4j.driver.v1.Values;
-import org.neo4j.driver.v1.util.Function;
-import org.neo4j.driver.v1.util.Pair;
+import org.neo4j.driver.util.Pair;
 
 import static java.lang.String.format;
+import static org.neo4j.driver.Values.ofObject;
+import static org.neo4j.driver.Values.ofValue;
 import static org.neo4j.driver.internal.util.Format.formatPairs;
-import static org.neo4j.driver.v1.Values.ofObject;
-import static org.neo4j.driver.v1.Values.ofValue;
 
 public class InternalRecord extends InternalMapAccessorWithDefaultValue implements Record
 {

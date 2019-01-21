@@ -23,9 +23,9 @@ import java.util.concurrent.CompletionStage;
 import org.neo4j.driver.internal.spi.Connection;
 import org.neo4j.driver.internal.spi.ConnectionPool;
 import org.neo4j.driver.internal.spi.ConnectionProvider;
-import org.neo4j.driver.v1.AccessMode;
+import org.neo4j.driver.AccessMode;
 
-import static org.neo4j.driver.v1.AccessMode.READ;
+import static org.neo4j.driver.AccessMode.READ;
 
 /**
  * Simple {@link ConnectionProvider connection provider} that obtains connections form the given pool only for

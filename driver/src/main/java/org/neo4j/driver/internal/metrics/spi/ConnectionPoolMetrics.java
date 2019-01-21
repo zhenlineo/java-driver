@@ -20,7 +20,7 @@ package org.neo4j.driver.internal.metrics.spi;
 
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.driver.v1.Config;
+import org.neo4j.driver.Config;
 
 public interface ConnectionPoolMetrics
 {

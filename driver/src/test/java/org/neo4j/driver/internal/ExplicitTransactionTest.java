@@ -27,9 +27,9 @@ import org.neo4j.driver.internal.messaging.request.PullAllMessage;
 import org.neo4j.driver.internal.messaging.request.RunMessage;
 import org.neo4j.driver.internal.spi.Connection;
 import org.neo4j.driver.internal.spi.ResponseHandler;
-import org.neo4j.driver.v1.Transaction;
-import org.neo4j.driver.v1.TransactionConfig;
-import org.neo4j.driver.v1.exceptions.ClientException;
+import org.neo4j.driver.Transaction;
+import org.neo4j.driver.TransactionConfig;
+import org.neo4j.driver.exceptions.ClientException;
 
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -45,10 +45,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.neo4j.driver.v1.util.TestUtil.DEFAULT_TEST_PROTOCOL;
-import static org.neo4j.driver.v1.util.TestUtil.await;
-import static org.neo4j.driver.v1.util.TestUtil.connectionMock;
-import static org.neo4j.driver.v1.util.TestUtil.runMessageWithStatementMatcher;
+import static org.neo4j.driver.util.TestUtil.DEFAULT_TEST_PROTOCOL;
+import static org.neo4j.driver.util.TestUtil.await;
+import static org.neo4j.driver.util.TestUtil.connectionMock;
+import static org.neo4j.driver.util.TestUtil.runMessageWithStatementMatcher;
 
 class ExplicitTransactionTest
 {

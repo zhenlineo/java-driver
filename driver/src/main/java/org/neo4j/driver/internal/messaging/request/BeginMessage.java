@@ -23,8 +23,8 @@ import java.util.Map;
 import java.util.Objects;
 
 import org.neo4j.driver.internal.Bookmarks;
-import org.neo4j.driver.v1.TransactionConfig;
-import org.neo4j.driver.v1.Value;
+import org.neo4j.driver.TransactionConfig;
+import org.neo4j.driver.Value;
 
 public class BeginMessage extends TransactionStartingMessage
 {

@@ -19,17 +19,17 @@
 package org.neo4j.driver.internal.value;
 
 import java.util.Map;
+import java.util.function.Function;
 
+import org.neo4j.driver.Value;
+import org.neo4j.driver.Values;
 import org.neo4j.driver.internal.types.InternalTypeSystem;
 import org.neo4j.driver.internal.util.Extract;
-import org.neo4j.driver.v1.Value;
-import org.neo4j.driver.v1.Values;
-import org.neo4j.driver.v1.types.Type;
-import org.neo4j.driver.v1.util.Function;
+import org.neo4j.driver.types.Type;
 
+import static org.neo4j.driver.Values.ofObject;
+import static org.neo4j.driver.Values.ofValue;
 import static org.neo4j.driver.internal.util.Format.formatPairs;
-import static org.neo4j.driver.v1.Values.ofObject;
-import static org.neo4j.driver.v1.Values.ofValue;
 
 public class MapValue extends ValueAdapter
 {

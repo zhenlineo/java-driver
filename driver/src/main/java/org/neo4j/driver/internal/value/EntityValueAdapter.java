@@ -19,10 +19,10 @@
 package org.neo4j.driver.internal.value;
 
 import java.util.Map;
+import java.util.function.Function;
 
-import org.neo4j.driver.v1.Value;
-import org.neo4j.driver.v1.types.Entity;
-import org.neo4j.driver.v1.util.Function;
+import org.neo4j.driver.Value;
+import org.neo4j.driver.types.Entity;
 
 public abstract class EntityValueAdapter<V extends Entity> extends ObjectValueAdapter<V>
 {

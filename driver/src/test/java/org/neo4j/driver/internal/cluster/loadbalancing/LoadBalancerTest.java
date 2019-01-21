@@ -36,9 +36,9 @@ import org.neo4j.driver.internal.spi.Connection;
 import org.neo4j.driver.internal.spi.ConnectionPool;
 import org.neo4j.driver.internal.util.FakeClock;
 import org.neo4j.driver.internal.util.Futures;
-import org.neo4j.driver.v1.AccessMode;
-import org.neo4j.driver.v1.exceptions.ServiceUnavailableException;
-import org.neo4j.driver.v1.exceptions.SessionExpiredException;
+import org.neo4j.driver.AccessMode;
+import org.neo4j.driver.exceptions.ServiceUnavailableException;
+import org.neo4j.driver.exceptions.SessionExpiredException;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptySet;
@@ -64,10 +64,10 @@ import static org.neo4j.driver.internal.cluster.ClusterCompositionUtil.D;
 import static org.neo4j.driver.internal.cluster.ClusterCompositionUtil.E;
 import static org.neo4j.driver.internal.cluster.ClusterCompositionUtil.F;
 import static org.neo4j.driver.internal.logging.DevNullLogging.DEV_NULL_LOGGING;
-import static org.neo4j.driver.v1.AccessMode.READ;
-import static org.neo4j.driver.v1.AccessMode.WRITE;
-import static org.neo4j.driver.v1.util.TestUtil.asOrderedSet;
-import static org.neo4j.driver.v1.util.TestUtil.await;
+import static org.neo4j.driver.AccessMode.READ;
+import static org.neo4j.driver.AccessMode.WRITE;
+import static org.neo4j.driver.util.TestUtil.asOrderedSet;
+import static org.neo4j.driver.util.TestUtil.await;
 
 class LoadBalancerTest
 {
