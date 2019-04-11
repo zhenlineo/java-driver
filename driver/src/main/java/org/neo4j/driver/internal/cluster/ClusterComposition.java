@@ -21,11 +21,12 @@ package org.neo4j.driver.internal.cluster;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 
-import org.neo4j.driver.internal.BoltServerAddress;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
-import java.util.function.Function;
+import org.neo4j.driver.internal.BoltServerAddress;
+import org.neo4j.driver.net.ServerAddress;
 
 public final class ClusterComposition
 {
@@ -44,13 +45,15 @@ public final class ClusterComposition
     private final Set<BoltServerAddress> writers;
     private final Set<BoltServerAddress> routers;
     private final long expirationTimestamp;
+    private final ServerAddress provider;
 
-    private ClusterComposition( long expirationTimestamp )
+    private ClusterComposition( long expirationTimestamp, ServerAddress provider )
     {
         this.readers = new LinkedHashSet<>();
         this.writers = new LinkedHashSet<>();
         this.routers = new LinkedHashSet<>();
         this.expirationTimestamp = expirationTimestamp;
+        this.provider = provider;
     }
 
     /** For testing */
@@ -60,7 +63,7 @@ public final class ClusterComposition
             Set<BoltServerAddress> writers,
             Set<BoltServerAddress> routers )
     {
-        this( expirationTimestamp );
+        this( expirationTimestamp, null ); // for this hack only
         this.readers.addAll( readers );
         this.writers.addAll( writers );
         this.routers.addAll( routers );
@@ -89,6 +92,11 @@ public final class ClusterComposition
     public Set<BoltServerAddress> routers()
     {
         return new LinkedHashSet<>( routers );
+    }
+
+    public ServerAddress provider()
+    {
+        return provider;
     }
 
     public long expirationTimestamp() {
@@ -130,14 +138,14 @@ public final class ClusterComposition
                '}';
     }
 
-    public static ClusterComposition parse( Record record, long now )
+    public static ClusterComposition parse( Record record, long now, ServerAddress provider )
     {
         if ( record == null )
         {
             return null;
         }
 
-        final ClusterComposition result = new ClusterComposition( expirationTimestamp( now, record ) );
+        final ClusterComposition result = new ClusterComposition( expirationTimestamp( now, record ), provider );
         record.get( "servers" ).asList( new Function<Value,Void>()
         {
             @Override

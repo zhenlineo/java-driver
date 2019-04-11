@@ -25,6 +25,7 @@ import org.neo4j.driver.internal.value.StringValue;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Statement;
 import org.neo4j.driver.Value;
+import org.neo4j.driver.net.ServerAddress;
 
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -35,6 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RoutingProcedureResponseTest
 {
     private static final Statement PROCEDURE = new Statement( "procedure" );
+    private static final ServerAddress ROUTER = ServerAddress.of( "localhost", 8080 );
 
     private static final Record RECORD_1 = new InternalRecord( asList( "a", "b" ),
             new Value[]{new StringValue( "a" ), new StringValue( "b" )} );
@@ -44,14 +46,14 @@ class RoutingProcedureResponseTest
     @Test
     void shouldBeSuccessfulWithRecords()
     {
-        RoutingProcedureResponse response = new RoutingProcedureResponse( PROCEDURE, asList( RECORD_1, RECORD_2 ) );
+        RoutingProcedureResponse response = new RoutingProcedureResponse( PROCEDURE, ROUTER, asList( RECORD_1, RECORD_2 ) );
         assertTrue( response.isSuccess() );
     }
 
     @Test
     void shouldNotBeSuccessfulWithError()
     {
-        RoutingProcedureResponse response = new RoutingProcedureResponse( PROCEDURE, new RuntimeException() );
+        RoutingProcedureResponse response = new RoutingProcedureResponse( PROCEDURE, ROUTER, new RuntimeException() );
         assertFalse( response.isSuccess() );
     }
 
@@ -59,7 +61,7 @@ class RoutingProcedureResponseTest
     void shouldThrowWhenFailedAndAskedForRecords()
     {
         RuntimeException error = new RuntimeException();
-        RoutingProcedureResponse response = new RoutingProcedureResponse( PROCEDURE, error );
+        RoutingProcedureResponse response = new RoutingProcedureResponse( PROCEDURE, ROUTER, error );
 
         IllegalStateException e = assertThrows( IllegalStateException.class, response::records );
         assertEquals( e.getCause(), error );
@@ -68,7 +70,7 @@ class RoutingProcedureResponseTest
     @Test
     void shouldThrowWhenSuccessfulAndAskedForError()
     {
-        RoutingProcedureResponse response = new RoutingProcedureResponse( PROCEDURE, asList( RECORD_1, RECORD_2 ) );
+        RoutingProcedureResponse response = new RoutingProcedureResponse( PROCEDURE, ROUTER, asList( RECORD_1, RECORD_2 ) );
 
         assertThrows( IllegalStateException.class, response::error );
     }
@@ -77,21 +79,21 @@ class RoutingProcedureResponseTest
     void shouldHaveErrorWhenFailed()
     {
         RuntimeException error = new RuntimeException( "Hi!" );
-        RoutingProcedureResponse response = new RoutingProcedureResponse( PROCEDURE, error );
+        RoutingProcedureResponse response = new RoutingProcedureResponse( PROCEDURE, ROUTER, error );
         assertEquals( error, response.error() );
     }
 
     @Test
     void shouldHaveRecordsWhenSuccessful()
     {
-        RoutingProcedureResponse response = new RoutingProcedureResponse( PROCEDURE, asList( RECORD_1, RECORD_2 ) );
+        RoutingProcedureResponse response = new RoutingProcedureResponse( PROCEDURE, ROUTER, asList( RECORD_1, RECORD_2 ) );
         assertEquals( asList( RECORD_1, RECORD_2 ), response.records() );
     }
 
     @Test
     void shouldHaveProcedure()
     {
-        RoutingProcedureResponse response = new RoutingProcedureResponse( PROCEDURE, asList( RECORD_1, RECORD_2 ) );
+        RoutingProcedureResponse response = new RoutingProcedureResponse( PROCEDURE, ROUTER, asList( RECORD_1, RECORD_2 ) );
         assertEquals( PROCEDURE, response.procedure() );
     }
 }

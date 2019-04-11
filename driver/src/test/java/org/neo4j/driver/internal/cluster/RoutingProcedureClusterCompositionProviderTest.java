@@ -36,6 +36,7 @@ import org.neo4j.driver.Statement;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.exceptions.ProtocolException;
 import org.neo4j.driver.exceptions.ServiceUnavailableException;
+import org.neo4j.driver.net.ServerAddress;
 
 import static java.util.Arrays.asList;
 import static java.util.concurrent.CompletableFuture.completedFuture;
@@ -268,11 +269,11 @@ class RoutingProcedureClusterCompositionProviderTest
 
     private static RoutingProcedureResponse newRoutingResponse( Record... records )
     {
-        return new RoutingProcedureResponse( new Statement( "procedure" ), asList( records ) );
+        return new RoutingProcedureResponse( new Statement( "procedure" ), ServerAddress.of( "localhost", 7687 ), asList( records ) );
     }
 
     private static RoutingProcedureResponse newRoutingResponse( Throwable error )
     {
-        return new RoutingProcedureResponse( new Statement( "procedure" ), error );
+        return new RoutingProcedureResponse( new Statement( "procedure" ), ServerAddress.of( "localhost", 7687 ), error );
     }
 }

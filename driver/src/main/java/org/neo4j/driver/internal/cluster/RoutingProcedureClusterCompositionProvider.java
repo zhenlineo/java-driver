@@ -84,7 +84,7 @@ public class RoutingProcedureClusterCompositionProvider implements ClusterCompos
         ClusterComposition cluster;
         try
         {
-            cluster = ClusterComposition.parse( records.get( 0 ), now );
+            cluster = ClusterComposition.parse( records.get( 0 ), now, response.router() );
         }
         catch ( ValueException e )
         {

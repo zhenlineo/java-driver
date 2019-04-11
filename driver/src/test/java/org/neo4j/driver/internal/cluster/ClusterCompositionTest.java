@@ -155,7 +155,7 @@ class ClusterCompositionTest
         };
         Record record = new InternalRecord( asList( "ttl", "servers" ), values );
 
-        ClusterComposition composition = ClusterComposition.parse( record, 0 );
+        ClusterComposition composition = ClusterComposition.parse( record, 0, null );
 
         // TTL is received in seconds and is converted to millis
         assertEquals( 42_000, composition.expirationTimestamp() );
@@ -176,7 +176,7 @@ class ClusterCompositionTest
         };
         Record record = new InternalRecord( asList( "ttl", "servers" ), values );
 
-        ClusterComposition composition = ClusterComposition.parse( record, 0 );
+        ClusterComposition composition = ClusterComposition.parse( record, 0, null );
 
         assertThat( composition.readers(), contains( A, C, E, B, F, D ) );
         assertEquals( 0, composition.writers().size() );
@@ -194,7 +194,7 @@ class ClusterCompositionTest
         };
         Record record = new InternalRecord( asList( "ttl", "servers" ), values );
 
-        ClusterComposition composition = ClusterComposition.parse( record, 0 );
+        ClusterComposition composition = ClusterComposition.parse( record, 0, null );
 
         assertEquals( 0, composition.readers().size() );
         assertThat( composition.writers(), contains( C, F, D, A, B, E ) );
@@ -212,7 +212,7 @@ class ClusterCompositionTest
         };
         Record record = new InternalRecord( asList( "ttl", "servers" ), values );
 
-        ClusterComposition composition = ClusterComposition.parse( record, 0 );
+        ClusterComposition composition = ClusterComposition.parse( record, 0, null );
 
         assertEquals( 0, composition.readers().size() );
         assertEquals( 0, composition.writers().size() );

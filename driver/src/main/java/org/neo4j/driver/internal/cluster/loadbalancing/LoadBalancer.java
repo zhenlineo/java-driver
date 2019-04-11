@@ -175,7 +175,7 @@ public class LoadBalancer implements ConnectionProvider, RoutingErrorHandler
             routingTable.update( composition );
             connectionPool.retainAll( routingTable.servers() );
 
-            log.info( "Updated routing table. %s", routingTable );
+            log.info( "Updated routing table using router %s. %s", composition.provider(), routingTable );
 
             CompletableFuture<RoutingTable> routingTableFuture = refreshRoutingTableFuture;
             refreshRoutingTableFuture = null;

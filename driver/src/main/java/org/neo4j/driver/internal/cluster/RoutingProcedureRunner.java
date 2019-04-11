@@ -33,6 +33,7 @@ import org.neo4j.driver.Statement;
 import org.neo4j.driver.async.StatementResultCursor;
 import org.neo4j.driver.TransactionConfig;
 import org.neo4j.driver.exceptions.ClientException;
+import org.neo4j.driver.net.ServerAddress;
 
 import static org.neo4j.driver.internal.messaging.request.MultiDatabaseUtil.ABSENT_DB_NAME;
 import static org.neo4j.driver.internal.util.ServerVersion.v3_2_0;
@@ -57,10 +58,11 @@ public class RoutingProcedureRunner
         {
             // Routing procedure will be called on the default database
             DecoratedConnection delegate = new DecoratedConnection( connection, ABSENT_DB_NAME, AccessMode.WRITE );
+            ServerAddress router = connection.serverAddress();
             Statement procedure = procedureStatement( delegate.serverVersion() );
             return runProcedure( delegate, procedure )
                     .thenCompose( records -> releaseConnection( delegate, records ) )
-                    .handle( ( records, error ) -> processProcedureResponse( procedure, records, error ) );
+                    .handle( ( records, error ) -> processProcedureResponse( procedure, router, records, error ) );
         } );
     }
 
@@ -94,25 +96,25 @@ public class RoutingProcedureRunner
         return connection.release().thenApply( ignore -> records );
     }
 
-    private RoutingProcedureResponse processProcedureResponse( Statement procedure, List<Record> records,
+    private RoutingProcedureResponse processProcedureResponse( Statement procedure, ServerAddress router, List<Record> records,
             Throwable error )
     {
         Throwable cause = Futures.completionExceptionCause( error );
         if ( cause != null )
         {
-            return handleError( procedure, cause );
+            return handleError( procedure, router, cause );
         }
         else
         {
-            return new RoutingProcedureResponse( procedure, records );
+            return new RoutingProcedureResponse( procedure, router, records );
         }
     }
 
-    private RoutingProcedureResponse handleError( Statement procedure, Throwable error )
+    private RoutingProcedureResponse handleError( Statement procedure, ServerAddress router, Throwable error )
     {
         if ( error instanceof ClientException )
         {
-            return new RoutingProcedureResponse( procedure, error );
+            return new RoutingProcedureResponse( procedure, router, error );
         }
         else
         {

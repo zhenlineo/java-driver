@@ -22,26 +22,29 @@ import java.util.List;
 
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Statement;
+import org.neo4j.driver.net.ServerAddress;
 
 public class RoutingProcedureResponse
 {
     private final Statement procedure;
     private final List<Record> records;
     private final Throwable error;
+    private final ServerAddress router;
 
-    public RoutingProcedureResponse( Statement procedure, List<Record> records )
+    public RoutingProcedureResponse( Statement procedure, ServerAddress router, List<Record> records )
     {
-        this( procedure, records, null );
+        this( procedure, router, records, null );
     }
 
-    public RoutingProcedureResponse( Statement procedure, Throwable error )
+    public RoutingProcedureResponse( Statement procedure, ServerAddress router, Throwable error )
     {
-        this( procedure, null, error );
+        this( procedure, router, null, error );
     }
 
-    private RoutingProcedureResponse( Statement procedure, List<Record> records, Throwable error )
+    private RoutingProcedureResponse( Statement procedure, ServerAddress router, List<Record> records, Throwable error )
     {
         this.procedure = procedure;
+        this.router = router;
         this.records = records;
         this.error = error;
     }
@@ -54,6 +57,11 @@ public class RoutingProcedureResponse
     public Statement procedure()
     {
         return procedure;
+    }
+
+    public ServerAddress router()
+    {
+        return router;
     }
 
     public List<Record> records()
