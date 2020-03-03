@@ -30,6 +30,8 @@ import org.neo4j.driver.async.AsyncSession;
 import org.neo4j.driver.exceptions.ServiceUnavailableException;
 import org.neo4j.driver.exceptions.SessionExpiredException;
 import org.neo4j.driver.exceptions.TransientException;
+import org.neo4j.driver.internal.SecuritySettings;
+import org.neo4j.driver.internal.SecuritySettings.SecuritySettingsBuilder;
 import org.neo4j.driver.internal.async.pool.PoolSettings;
 import org.neo4j.driver.internal.cluster.RoutingSettings;
 import org.neo4j.driver.internal.handlers.pulln.FetchSizeUtil;
@@ -39,7 +41,6 @@ import org.neo4j.driver.reactive.RxSession;
 import org.neo4j.driver.util.Immutable;
 import org.neo4j.driver.util.Resource;
 
-import static org.neo4j.driver.Config.TrustStrategy.trustSystemCertificates;
 import static org.neo4j.driver.Logging.javaUtilLogging;
 
 /**
@@ -85,11 +86,7 @@ public class Config
     private final long maxConnectionLifetimeMillis;
     private final long connectionAcquisitionTimeoutMillis;
 
-    /** Indicator for encrypted traffic */
-    private final boolean encrypted;
-
-    /** Strategy for how to trust encryption certificate */
-    private final TrustStrategy trustStrategy;
+    private final SecuritySettings securitySettings;
 
     private final int routingFailureLimit;
     private final long routingRetryDelayMillis;
@@ -113,8 +110,8 @@ public class Config
         this.maxConnectionPoolSize = builder.maxConnectionPoolSize;
         this.connectionAcquisitionTimeoutMillis = builder.connectionAcquisitionTimeoutMillis;
 
-        this.encrypted = builder.encrypted;
-        this.trustStrategy = builder.trustStrategy;
+        this.securitySettings = builder.securitySettingsBuilder.build();
+
         this.routingFailureLimit = builder.routingFailureLimit;
         this.routingRetryDelayMillis = builder.routingRetryDelayMillis;
         this.connectionTimeoutMillis = builder.connectionTimeoutMillis;
@@ -190,7 +187,7 @@ public class Config
      */
     public boolean encrypted()
     {
-        return encrypted;
+        return securitySettings.encrypted();
     }
 
     /**
@@ -198,7 +195,15 @@ public class Config
      */
     public TrustStrategy trustStrategy()
     {
-        return trustStrategy;
+        return securitySettings.trustStrategy();
+    }
+
+    /**
+     * @return the security setting to use when creating connections.
+     */
+    SecuritySettings securitySettings()
+    {
+        return securitySettings;
     }
 
     /**
@@ -268,8 +273,7 @@ public class Config
         private long idleTimeBeforeConnectionTest = PoolSettings.DEFAULT_IDLE_TIME_BEFORE_CONNECTION_TEST;
         private long maxConnectionLifetimeMillis = PoolSettings.DEFAULT_MAX_CONNECTION_LIFETIME;
         private long connectionAcquisitionTimeoutMillis = PoolSettings.DEFAULT_CONNECTION_ACQUISITION_TIMEOUT;
-        private boolean encrypted = false;
-        private TrustStrategy trustStrategy = trustSystemCertificates();
+        private final SecuritySettingsBuilder securitySettingsBuilder = new SecuritySettingsBuilder();
         private int routingFailureLimit = RoutingSettings.DEFAULT.maxRoutingFailures();
         private long routingRetryDelayMillis = RoutingSettings.DEFAULT.retryTimeoutDelay();
         private long routingTablePurgeDelayMillis = RoutingSettings.DEFAULT.routingTablePurgeDelayMs();
@@ -443,7 +447,7 @@ public class Config
          */
         public ConfigBuilder withEncryption()
         {
-            this.encrypted = true;
+            securitySettingsBuilder.withEncryption();
             return this;
         }
 
@@ -453,7 +457,7 @@ public class Config
          */
         public ConfigBuilder withoutEncryption()
         {
-            this.encrypted = false;
+            securitySettingsBuilder.withoutEncryption();
             return this;
         }
 
@@ -473,7 +477,7 @@ public class Config
          */
         public ConfigBuilder withTrustStrategy( TrustStrategy trustStrategy )
         {
-            this.trustStrategy = trustStrategy;
+            securitySettingsBuilder.withTrustStrategy( trustStrategy );
             return this;
         }
 
@@ -734,6 +738,7 @@ public class Config
             return new Config( this );
         }
     }
+
 
     /**
      * Control how the driver determines if it can trust the encryption certificates provided by the Neo4j instance it is connected to.

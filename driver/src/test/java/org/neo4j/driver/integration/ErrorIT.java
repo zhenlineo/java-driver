@@ -37,14 +37,15 @@ import org.neo4j.driver.AuthToken;
 import org.neo4j.driver.Config;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
-import org.neo4j.driver.Session;
 import org.neo4j.driver.Result;
+import org.neo4j.driver.Session;
 import org.neo4j.driver.Transaction;
 import org.neo4j.driver.exceptions.ClientException;
 import org.neo4j.driver.exceptions.ServiceUnavailableException;
 import org.neo4j.driver.internal.cluster.RoutingSettings;
 import org.neo4j.driver.internal.messaging.response.FailureMessage;
 import org.neo4j.driver.internal.retry.RetrySettings;
+import org.neo4j.driver.internal.security.SecurityPlanImpl;
 import org.neo4j.driver.internal.util.FailingMessageFormat;
 import org.neo4j.driver.internal.util.FakeClock;
 import org.neo4j.driver.internal.util.io.ChannelTrackingDriverFactory;
@@ -264,7 +265,7 @@ class ErrorIT
         Config config = Config.builder().withLogging( DEV_NULL_LOGGING ).build();
         Throwable queryError = null;
 
-        try ( Driver driver = driverFactory.newInstance( uri, authToken, routingSettings, retrySettings, config ) )
+        try ( Driver driver = driverFactory.newInstance( uri, authToken, routingSettings, retrySettings, config, SecurityPlanImpl.insecure() ) )
         {
             driver.verifyConnectivity();
             try(Session session = driver.session() )

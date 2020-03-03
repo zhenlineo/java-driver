@@ -1205,7 +1205,7 @@ class RoutingDriverBoltKitTest
         URI uri = URI.create( uriString );
         RoutingSettings routingConf = new RoutingSettings( 1, 1, 0, null );
         AuthToken auth = AuthTokens.none();
-        return driverFactory.newInstance( uri, auth, routingConf, RetrySettings.DEFAULT, config );
+        return driverFactory.newInstance( uri, auth, routingConf, RetrySettings.DEFAULT, config, SecurityPlanImpl.insecure() );
     }
 
     private static TransactionWork<List<Record>> queryWork( final String query, final AtomicInteger invocations )

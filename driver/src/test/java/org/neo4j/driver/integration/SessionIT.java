@@ -1413,7 +1413,7 @@ class SessionIT
     {
         DriverFactory driverFactory = new DriverFactoryWithFixedRetryLogic( maxRetriesCount );
         AuthToken auth = DEFAULT_AUTH_TOKEN;
-        return driverFactory.newInstance( neo4j.uri(), auth, RoutingSettings.DEFAULT, RetrySettings.DEFAULT, noLoggingConfig() );
+        return driverFactory.newInstance( neo4j.uri(), auth, RoutingSettings.DEFAULT, RetrySettings.DEFAULT, noLoggingConfig(), SecurityPlanImpl.insecure() );
     }
 
     private Driver newDriverWithLimitedRetries( int maxTxRetryTime, TimeUnit unit )

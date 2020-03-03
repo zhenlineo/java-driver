@@ -22,8 +22,10 @@ import java.net.URI;
 
 import org.neo4j.driver.exceptions.ServiceUnavailableException;
 import org.neo4j.driver.internal.DriverFactory;
+import org.neo4j.driver.internal.SecuritySettings;
 import org.neo4j.driver.internal.cluster.RoutingSettings;
 import org.neo4j.driver.internal.retry.RetrySettings;
+import org.neo4j.driver.internal.security.SecurityPlan;
 
 import static org.neo4j.driver.internal.DriverFactory.BOLT_ROUTING_URI_SCHEME;
 
@@ -132,8 +134,10 @@ public class GraphDatabase
         config = getOrDefault( config );
         RoutingSettings routingSettings = config.routingSettings();
         RetrySettings retrySettings = config.retrySettings();
+        SecuritySettings securitySettings = config.securitySettings();
+        SecurityPlan securityPlan = securitySettings.createSecurityPlan( uri.getScheme() );
 
-        return new DriverFactory().newInstance( uri, authToken, routingSettings, retrySettings, config );
+        return new DriverFactory().newInstance( uri, authToken, routingSettings, retrySettings, config, securityPlan );
     }
 
     /**

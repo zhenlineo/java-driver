@@ -29,13 +29,14 @@ import java.util.function.Consumer;
 import org.neo4j.driver.Config;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
-import org.neo4j.driver.Session;
 import org.neo4j.driver.Result;
+import org.neo4j.driver.Session;
 import org.neo4j.driver.Transaction;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.exceptions.ClientException;
 import org.neo4j.driver.exceptions.ServiceUnavailableException;
 import org.neo4j.driver.internal.cluster.RoutingSettings;
+import org.neo4j.driver.internal.security.SecurityPlanImpl;
 import org.neo4j.driver.internal.util.Clock;
 import org.neo4j.driver.internal.util.io.ChannelTrackingDriverFactory;
 import org.neo4j.driver.util.ParallelizableIT;
@@ -400,7 +401,7 @@ class TransactionIT
         ChannelTrackingDriverFactory factory = new ChannelTrackingDriverFactory( 1, Clock.SYSTEM );
         Config config = Config.builder().withLogging( DEV_NULL_LOGGING ).build();
 
-        try ( Driver driver = factory.newInstance( session.uri(), session.authToken(), RoutingSettings.DEFAULT, DEFAULT, config ) )
+        try ( Driver driver = factory.newInstance( session.uri(), session.authToken(), RoutingSettings.DEFAULT, DEFAULT, config, SecurityPlanImpl.insecure() ) )
         {
             ServiceUnavailableException e = assertThrows( ServiceUnavailableException.class, () ->
             {
